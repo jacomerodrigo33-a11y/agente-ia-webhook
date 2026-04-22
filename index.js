@@ -55,23 +55,25 @@ Respostas CURTAS (máx 3 linhas). Tom profissional.`
 const conversations = {};
 
 async function callClaude(history, project) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const messages = [
+    { role: "system", content: SCRIPTS[project] },
+    ...history
+  ];
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_KEY,
-      "anthropic-version": "2023-06-01"
+      "Authorization": `Bearer ${ANTHROPIC_KEY}`
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "llama-3.3-70b-versatile",
       max_tokens: 500,
-      system: SCRIPTS[project],
-      messages: history
+      messages
     })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(JSON.stringify(data));
-  return data.content[0].text;
+  return data.choices[0].message.content;
 }
 
 async function sendWhatsApp(number, text) {
