@@ -1,0 +1,15 @@
+{
+  "name": "agente-ia-whatsapp",
+  "version": "1.0.0",
+  "description": "Agente IA para agendamentos via WhatsApp + Evolution API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
