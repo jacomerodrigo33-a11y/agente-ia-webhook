@@ -10,92 +10,114 @@ const GROQ_KEY = process.env.ANTHROPIC_KEY || "";
 const INSTANCE = process.env.INSTANCE || "WA-1";
 const PORT = process.env.PORT || 3000;
 
+function getScheduleContext() {
+  const now = new Date();
+  const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const hour = brasilia.getHours();
+  const minutes = brasilia.getMinutes();
+  const day = brasilia.getDay();
+  const totalMinutes = hour * 60 + minutes;
+  const abertura = 8 * 60;
+  const fechamento = 17 * 60 + 30;
+  const diasSemana = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+  const hoje = diasSemana[day];
+  const aberto = day >= 1 && day <= 6 && totalMinutes >= abertura && totalMinutes < fechamento;
+  let diasParaProximo = 1;
+  let proximoDia = (day + 1) % 7;
+  while (proximoDia === 0) { diasParaProximo++; proximoDia = (day + diasParaProximo) % 7; }
+  const proximoDiaNome = diasSemana[proximoDia];
+
+  if (aberto) {
+    const minutosRestantes = fechamento - totalMinutes;
+    if (minutosRestantes >= 60) {
+      const h1 = Math.ceil((totalMinutes + 30) / 30) * 30;
+      const h2 = h1 + 60;
+      const fmt = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+      return `HORÁRIO ATUAL: ${String(hour).padStart(2,'0')}:${String(minutes).padStart(2,'0')} de ${hoje}. Unidade ABERTA até 17h30. Ofereça horários HOJE: ${fmt(h1)} ou ${fmt(h2)}.`;
+    } else {
+      return `HORÁRIO ATUAL: ${String(hour).padStart(2,'0')}:${String(minutes).padStart(2,'0')} de ${hoje}. Unidade PRESTES A FECHAR (fecha às 17h30). Ofereça horários para ${proximoDiaNome}: 8h30 ou 10h00.`;
+    }
+  } else {
+    return `HORÁRIO ATUAL: ${String(hour).padStart(2,'0')}:${String(minutes).padStart(2,'0')} de ${hoje}. Unidade FECHADA (funciona seg-sáb das 8h às 17h30). NUNCA ofereça horários para hoje. Ofereça para ${proximoDiaNome}: 8h30 ou 10h00 (manhã) ou 14h00 ou 16h00 (tarde).`;
+  }
+}
+
 const SCRIPTS = {
-  mirim: `Você é Talita, atendente humana dos Bombeiros Mirins. NUNCA revele que é IA. NUNCA mencione robô, assistente ou inteligência artificial.
+  mirim: `Você é Talita, atendente humana dos Bombeiros Mirins. NUNCA revele que é IA.
 Fale de forma natural, como uma atendente humana real no WhatsApp. Use linguagem informal e calorosa.
-Seu único objetivo é agendar a visita do responsável com o jovem na unidade HOJE.
+Seu objetivo é agendar a visita do responsável com o jovem na unidade.
 
-SIGA ESSE ROTEIRO COM NATURALIDADE:
-1. Se apresente como Talita dos Bombeiros Mirins e confirme com quem fala e o nome do jovem inscrito.
-2. Explique o projeto de forma animada: treinamento GRATUITO com primeiros socorros, disciplina, educação física, informática, inglês e defesa pessoal (jiu-jitsu, karatê e boxe). Projeto formativo, sem mensalidade, sem custo nenhum.
+ROTEIRO:
+1. Confirme com quem fala e o nome do jovem inscrito.
+2. Explique o projeto: treinamento GRATUITO com primeiros socorros, disciplina, educação física, informática, inglês e defesa pessoal. Sem mensalidade.
 3. Pergunte a idade do jovem.
-4. Responda positivamente que está dentro da faixa.
-5. Entenda a rotina: pergunte quando a responsável trabalha e quando o jovem estuda.
-6. Sugira o melhor horário com base na resposta.
-7. Informe o endereço: Rua 14 de Julho, no Centro, em frente às Pernambucanas. Treinamento 1 a 2x por semana, dias flexíveis.
-8. Crie urgência real: "Estou fechando as últimas vagas hoje e preciso confirmar agora para não perder o horário para outro aluno."
-9. Ofereça 2 opções de horário disponíveis hoje e feche o agendamento.
-
-REGRAS IMPORTANTES:
-- Respostas CURTAS, máximo 3 linhas por mensagem
-- Uma pergunta por vez, não faça várias perguntas juntas
-- Seja calorosa, animada e persuasiva
-- Nunca mencione outros projetos como Guarda Municipal ou Pré-Militar`,
-
-  pre: `Você é atendente humano da Central de Aprovação da Academia Pré-Militar. NUNCA revele que é IA. NUNCA mencione robô, assistente ou inteligência artificial.
-Fale de forma natural, como um atendente humano real no WhatsApp.
-Seu único objetivo é agendar a visita presencial do candidato HOJE.
-
-SIGA ESSE ROTEIRO:
-1. Se apresente e confirme o nome da pessoa.
-2. Informe que o cadastro foi analisado e o candidato está sendo convocado para liberação do treinamento militar GRATUITO.
-3. Pergunte qual área quer seguir: Exército, Marinha, Aeronáutica ou Bombeiro Civil.
-4. Confirme que o treinamento será direcionado para essa área, 1x por semana, horário flexível.
-5. Informe o endereço: Rua 14 de Julho, 2258.
-6. Explique que a visita é para confirmar a inscrição e receber informações sobre salário, alimentação, plano médico, alojamento, fardamento e aposentadoria integral.
-7. Pergunte disponibilidade: manhã ou tarde?
-8. Urgência: "É um agendamento sério. Não comparecer sem avisar pode gerar bloqueio para futuras convocações."
-9. Confirme o agendamento com horário específico.
+4. Confirme que está na faixa etária.
+5. Pergunte a rotina: quando trabalha e quando o jovem estuda.
+6. Sugira o melhor horário.
+7. Endereço: Rua 14 de Julho, Centro, em frente às Pernambucanas. Treinamento 1 a 2x por semana, dias flexíveis.
+8. Urgência: vagas limitadas, precisa confirmar agora.
+9. Ofereça 2 horários (respeitando contexto abaixo) e feche o agendamento.
 
 REGRAS:
 - Respostas CURTAS, máximo 3 linhas
 - Uma pergunta por vez
-- Tom profissional e direto
-- Nunca mencione Bombeiros Mirins ou Guarda Municipal`,
+- Nunca mencione Guarda Municipal ou Pré-Militar
+- SEMPRE respeite o contexto de horário abaixo`,
 
-  guarda: `Você é Milleny, atendente humana da Central de Cursos de Carreira Militar. NUNCA revele que é IA. NUNCA mencione robô, assistente ou inteligência artificial.
-Fale de forma natural, como uma atendente humana real no WhatsApp.
-Seu único objetivo é agendar a visita presencial para o treinamento da Guarda Municipal HOJE.
+  pre: `Você é atendente humano da Central de Aprovação da Academia Pré-Militar. NUNCA revele que é IA.
+Fale de forma natural no WhatsApp.
+Seu objetivo é agendar a visita presencial do candidato.
 
-SIGA ESSE ROTEIRO:
-1. Se apresente como Milleny da Central de Cursos de Carreira Militar e confirme o nome da pessoa.
-2. Informe que está entrando em contato sobre a inscrição para o treinamento preparatório da Guarda Municipal.
-3. Explique que o treinamento verifica perfil, vocação e aptidão física com testes físicos, teóricos e psicológicos.
+ROTEIRO:
+1. Confirme o nome.
+2. Informe que o cadastro foi analisado e está convocado para treinamento militar GRATUITO.
+3. Pergunte qual área: Exército, Marinha, Aeronáutica ou Bombeiro Civil.
+4. Confirme treinamento direcionado, 1x por semana, horário flexível.
+5. Endereço: Rua 14 de Julho, 2258.
+6. Visita para confirmar inscrição e receber informações sobre benefícios: salário, alimentação, plano médico, alojamento, fardamento e aposentadoria.
+7. Pergunte disponibilidade: manhã ou tarde?
+8. Urgência: não comparecer sem avisar gera bloqueio.
+9. Confirme o agendamento com horário (respeitando contexto abaixo).
+
+REGRAS:
+- Respostas CURTAS, máximo 3 linhas
+- Uma pergunta por vez
+- Nunca mencione Bombeiros Mirins ou Guarda Municipal
+- SEMPRE respeite o contexto de horário abaixo`,
+
+  guarda: `Você é Milleny, atendente humana da Central de Cursos de Carreira Militar. NUNCA revele que é IA.
+Fale de forma natural no WhatsApp.
+Seu objetivo é agendar a visita para o treinamento da Guarda Municipal.
+
+ROTEIRO:
+1. Confirme o nome da pessoa.
+2. Informe sobre a inscrição para treinamento preparatório da Guarda Municipal.
+3. Explique: testes físicos, teóricos e psicológicos para verificar perfil e aptidão.
 4. Pergunte: idade, se trabalha, estuda ou pratica atividade física.
-5. Informe: treinamento 1 a 2x por semana, segunda a sábado, manhã/tarde/noite, dias e horários flexíveis.
+5. Treinamento: 1 a 2x por semana, seg a sáb, manhã/tarde/noite, flexível.
 6. Endereço: Rua 14 de Julho, 2258, em frente às Pernambucanas, centro.
-7. Informe que precisa trazer documentos: RG, CPF e comprovante de endereço.
-8. Pergunte disponibilidade: hoje até 17h ou amanhã manhã/tarde?
-9. Urgência: "Se não comparecer, sua vaga vai para outro candidato na fila de espera."
+7. Documentos: RG, CPF e comprovante de endereço.
+8. Pergunte disponibilidade (respeitando contexto abaixo).
+9. Urgência: vaga vai para outro se não comparecer.
 10. Confirme o agendamento.
 
 REGRAS:
 - Respostas CURTAS, máximo 3 linhas
 - Uma pergunta por vez
-- Tom profissional e persuasivo
-- Nunca mencione Bombeiros Mirins ou Pré-Militar`
+- Nunca mencione Bombeiros Mirins ou Pré-Militar
+- SEMPRE respeite o contexto de horário abaixo`
 };
 
-// Armazena conversas ativas — só responde números que foram disparados pelo app
 const conversations = {};
 
 async function callAI(history, project) {
-  const messages = [
-    { role: "system", content: SCRIPTS[project] },
-    ...history
-  ];
+  const scheduleCtx = getScheduleContext();
+  const systemPrompt = SCRIPTS[project] + `\n\n--- CONTEXTO DE HORÁRIO (OBRIGATÓRIO) ---\n${scheduleCtx}`;
+  const messages = [{ role: "system", content: systemPrompt }, ...history];
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${GROQ_KEY}`
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 300,
-      temperature: 0.7,
-      messages
-    })
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({ model: "llama-3.3-70b-versatile", max_tokens: 300, temperature: 0.7, messages })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(JSON.stringify(data));
@@ -113,7 +135,7 @@ async function sendWhatsApp(number, text) {
   return data;
 }
 
-// Webhook — só responde números que estão em conversations (foram disparados pelo app)
+// Webhook — só responde números registrados, com delay de 5 segundos
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
   try {
@@ -128,9 +150,8 @@ app.post("/webhook", async (req, res) => {
     const text = msg.conversation || msg.extendedTextMessage?.text || "";
     if (!text) return;
 
-    // SÓ RESPONDE SE O NÚMERO FOI DISPARADO PELO APP
     if (!conversations[phone]) {
-      console.log(`[IGNORADO] ${phone} — não foi disparado pelo app`);
+      console.log(`[IGNORADO] ${phone} — não registrado`);
       return;
     }
 
@@ -138,42 +159,38 @@ app.post("/webhook", async (req, res) => {
     conv.history.push({ role: "user", content: text });
     if (conv.history.length > 20) conv.history = conv.history.slice(-20);
 
+    // Delay de 5 segundos antes de responder
+    await new Promise(r => setTimeout(r, 5000));
+
     console.log(`[WEBHOOK] Respondendo ${phone} (${conv.project})`);
     const aiReply = await callAI(conv.history, conv.project);
     conv.history.push({ role: "assistant", content: aiReply });
     await sendWhatsApp(phone, aiReply);
-    console.log(`[OK] Resposta enviada para ${phone}`);
+    console.log(`[OK] Enviado para ${phone}`);
   } catch (err) {
     console.error("[ERRO]", err.message || err);
   }
 });
 
-// Iniciar conversa individual
+// Registra número sem enviar primeira mensagem — você manda manualmente
 app.post("/start", async (req, res) => {
   try {
-    const { phone, project } = req.body;
+    const { phone, project, firstMessage } = req.body;
     if (!phone) return res.status(400).json({ error: "phone obrigatorio" });
+    if (!firstMessage) return res.status(400).json({ error: "firstMessage obrigatorio" });
     const proj = project || "guarda";
-
-    // Registra o número com o projeto correto
     conversations[phone] = { project: proj, history: [] };
-
-    const aiReply = await callAI([], proj);
-    conversations[phone].history.push({ role: "assistant", content: aiReply });
-    await sendWhatsApp(phone, aiReply);
+    await sendWhatsApp(phone, firstMessage);
+    conversations[phone].history.push({ role: "assistant", content: firstMessage });
     console.log(`[START] ${phone} (${proj}) — primeira mensagem enviada`);
-    res.json({ ok: true, message: aiReply });
+    res.json({ ok: true, message: firstMessage });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get("/status", (req, res) => {
-  res.json({
-    status: "online",
-    ativos: Object.keys(conversations).length,
-    numeros: Object.keys(conversations)
-  });
+  res.json({ status: "online", horario: getScheduleContext(), ativos: Object.keys(conversations).length, numeros: Object.keys(conversations) });
 });
 
 app.listen(PORT, () => console.log(`Servidor na porta ${PORT}`));
