@@ -110,6 +110,64 @@ REGRAS:
 
 const conversations = {};
 
+// Protocolos por projeto
+const PROTOCOLOS = {
+  mirim: "047/61",
+  pre: "047/03",
+  guarda: "047/07"
+};
+
+const NOMES_PROJETO = {
+  mirim: "Bombeiro Mirim",
+  pre: "Pré Militar",
+  guarda: "Guarda Municipal"
+};
+
+// Gera mensagem de confirmação de agendamento
+function gerarConfirmacao(project, dataHora) {
+  const protocolo = PROTOCOLOS[project];
+  const nomeProjeto = NOMES_PROJETO[project];
+  return `✅ Informamos que o AGENDAMENTO referente ao treinamento ${nomeProjeto} foi concluído com sucesso.
+
+*Dados do Agendamento:*
+📋 Protocolo: Nº[${protocolo}]
+📅 Data/Horário: ${dataHora}
+📄 Documentos: RG, CPF, COMPROVANTE DE ENDEREÇO
+📍 Local: Rua 14 de Julho 2258 - Centro
+🏪 Ponto de Referência: Em frente às lojas Pernambucanas.
+
+⚠️ Obs: Se for de menor, deverá vir acompanhado com o responsável, e o jovem precisa estar junto no dia do treinamento.`;
+}
+
+// Detecta se a IA confirmou o agendamento e extrai data/hora
+async function detectarAgendamento(aiReply, project) {
+  const lower = aiReply.toLowerCase();
+  const confirmados = ["agendamento confirmado","agendamento realizado","ficou agendado","está agendado","agendamento feito","confirmado para","registrado para","anotado para","confirmei","registrei"];
+  const temConfirmacao = confirmados.some(p => lower.includes(p));
+  if (!temConfirmacao) return null;
+
+  // Tenta extrair data/hora da resposta da IA com Groq
+  const extractRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 50,
+      temperature: 0,
+      messages: [{
+        role: "user",
+        content: `Extraia APENAS a data e horário do agendamento desta mensagem no formato DD/MM/AAAA AS HH:MM. Se não encontrar, responda: NAO_ENCONTRADO. Mensagem: "${aiReply}"`
+      }]
+    })
+  });
+  const extractData = await extractRes.json();
+  const extracted = extractData.choices?.[0]?.message?.content?.trim() || "NAO_ENCONTRADO";
+  if (extracted === "NAO_ENCONTRADO") return null;
+  return extracted;
+}
+
+
+
 async function callAI(history, project) {
   const scheduleCtx = getScheduleContext();
   const systemPrompt = SCRIPTS[project] + `\n\n--- CONTEXTO DE HORÁRIO (OBRIGATÓRIO) ---\n${scheduleCtx}`;
@@ -167,6 +225,15 @@ app.post("/webhook", async (req, res) => {
     conv.history.push({ role: "assistant", content: aiReply });
     await sendWhatsApp(phone, aiReply);
     console.log(`[OK] Enviado para ${phone}`);
+
+    // Verifica se agendamento foi confirmado e envia mensagem de confirmação
+    const dataHora = await detectarAgendamento(aiReply, conv.project);
+    if (dataHora) {
+      await new Promise(r => setTimeout(r, 2000));
+      const confirmacao = gerarConfirmacao(conv.project, dataHora);
+      await sendWhatsApp(phone, confirmacao);
+      console.log(`[CONFIRMACAO] Enviada para ${phone} (${conv.project}) — ${dataHora}`);
+    }
   } catch (err) {
     console.error("[ERRO]", err.message || err);
   }
