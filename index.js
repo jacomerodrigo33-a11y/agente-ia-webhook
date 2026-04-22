@@ -1,6 +1,27 @@
 const express = require("express");
 const path = require("path");
 const app = express();
+const Redis = require("ioredis");
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+
+redis.on("connect", () => console.log("[REDIS] Conectado!"));
+redis.on("error", (e) => console.error("[REDIS ERROR]", e.message));
+
+async function getConversation(phone) {
+  const data = await redis.get("conv:" + phone);
+  return data ? JSON.parse(data) : null;
+}
+
+async function saveConversation(phone, conv) {
+  // Salva por 48 horas
+  await redis.setex("conv:" + phone, 172800, JSON.stringify(conv));
+}
+
+async function deleteConversation(phone) {
+  await redis.del("conv:" + phone);
+}
+
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -268,7 +289,6 @@ REGRAS:
 - Nunca mencione Bombeiros Mirins ou Pre-Militar
 - SEMPRE respeite o contexto de horario abaixo`
 };
-const conversations = {};
 
 // Protocolos por projeto
 const PROTOCOLOS = {
@@ -433,6 +453,7 @@ app.post("/webhook", async (req, res) => {
     const conv = conversations[phone];
     conv.history.push({ role: "user", content: text });
     if (conv.history.length > 20) conv.history = conv.history.slice(-20);
+    await saveConversation(phone, conv);
 
     // Delay de 5 segundos antes de responder
     await new Promise(r => setTimeout(r, 5000));
@@ -440,6 +461,7 @@ app.post("/webhook", async (req, res) => {
     console.log(`[WEBHOOK] Respondendo ${phone} (${conv.project})`);
     const aiReply = await callAI(conv.history, conv.project);
     conv.history.push({ role: "assistant", content: aiReply });
+    await saveConversation(phone, conv);
     await sendWhatsApp(phone, aiReply);
     console.log(`[OK] Enviado para ${phone}`);
 
@@ -463,9 +485,13 @@ app.post("/start", async (req, res) => {
     if (!phone) return res.status(400).json({ error: "phone obrigatorio" });
     if (!firstMessage) return res.status(400).json({ error: "firstMessage obrigatorio" });
     const proj = project || "guarda";
-    conversations[phone] = { project: proj, history: [] };
+    await saveConversation(phone, { project: proj, history: [] });
     await sendWhatsApp(phone, firstMessage);
-    conversations[phone].history.push({ role: "assistant", content: firstMessage });
+    const convStart = await getConversation(phone);
+    if (convStart) {
+      convStart.history.push({ role: "assistant", content: firstMessage });
+      await saveConversation(phone, convStart);
+    }
     console.log(`[START] ${phone} (${proj}) — primeira mensagem enviada`);
     res.json({ ok: true, message: firstMessage });
   } catch (err) {
@@ -473,8 +499,9 @@ app.post("/start", async (req, res) => {
   }
 });
 
-app.get("/status", (req, res) => {
-  res.json({ status: "online", horario: getScheduleContext(), ativos: Object.keys(conversations).length, numeros: Object.keys(conversations) });
+app.get("/status", async (req, res) => {
+  const keys = await redis.keys("conv:*");
+  res.json({ status: "online", horario: getScheduleContext(), ativos: keys.length, numeros: keys.map(k => k.replace("conv:", "")) });
 });
 
 app.listen(PORT, () => console.log(`Servidor na porta ${PORT}`));
