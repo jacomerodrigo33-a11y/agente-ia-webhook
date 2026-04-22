@@ -132,6 +132,11 @@ EXEMPLOS DE COMO REAGIR:
 - Crianca fora da faixa → indique o projeto correto 
 - Pergunta sobre custo → "Totalmente gratuito! Sem mensalidade nenhuma." e continue
 
+INFORMACOES IMPORTANTES PARA RESPONDER DUVIDAS:
+- Se perguntar sobre PCD ou autismo: Grau 1 PODE participar. Grau 2 ou acima NAO pode.
+- Se perguntar sobre custo: o projeto e GRATUITO, sem mensalidade. So e necessario trazer 1kg de alimento nao perecivel no dia da inscricao.
+- Nao e um curso, e um projeto formativo para criancas.
+
 REGRAS:
 - Respostas CURTAS, maximo 3 linhas
 - UMA pergunta por vez
@@ -188,6 +193,11 @@ EXEMPLOS DE COMO REAGIR:
 - Menor de 21 → avisar que precisa vir com responsavel
 - Pergunta sobre custo → "Totalmente gratuito!" e continue
 
+INFORMACOES IMPORTANTES PARA RESPONDER DUVIDAS:
+- Se perguntar sobre PCD ou autismo: NAO pode participar, nenhum grau. Se quiser apenas estudar como preparatorio para concurso, pode participar mesmo com PCD, mas nao seguira carreira militar.
+- Se perguntar sobre custo: o treinamento e GRATUITO, sem mensalidade. So e necessario trazer 1kg de alimento nao perecivel no dia da inscricao.
+- Nao e um curso, e um treinamento preparatorio para concurso publico militar.
+
 REGRAS:
 - Respostas CURTAS, maximo 3 linhas
 - UMA pergunta por vez
@@ -243,6 +253,12 @@ EXEMPLOS DE COMO REAGIR:
 - Pessoa fala que esta insatisfeita no trabalho atual → "Faz todo sentido querer algo melhor! E e exatamente isso que a gente oferece."
 - Menor de 21 → avisar que precisa vir com responsavel
 - Pergunta sobre custo → "Totalmente gratuito!" e continue
+
+INFORMACOES IMPORTANTES PARA RESPONDER DUVIDAS:
+- Se perguntar sobre PCD ou autismo: NAO pode participar, nenhum grau.
+- Se perguntar sobre custo: o treinamento e GRATUITO, sem mensalidade. So e necessario trazer 1kg de alimento nao perecivel no dia da inscricao.
+- Nao e um curso, e um treinamento preparatorio para concurso publico da Guarda Municipal.
+- Se a pessoa falar que nao terminou os estudos (maior de 18 anos): informe que temos o EJA para ele terminar os estudos, a plataforma e totalmente gratuita. Isso e importante pois para prestar concurso da Guarda Municipal e necessario ter o ensino medio completo. Incentive ele a se inscrever no EJA tambem.
 
 REGRAS:
 - Respostas CURTAS, maximo 3 linhas
@@ -383,7 +399,11 @@ app.post("/webhook", async (req, res) => {
     if (!text) {
       const isAudio = msg.audioMessage || msg.pttMessage;
       if (isAudio && conversations[phone]) {
-        await sendWhatsApp(phone, "Oi! Não consigo ouvir áudios por aqui, pode me responder por texto? 😊");
+        try {
+          await sendWhatsApp(phone, "Oi! Não consigo ouvir áudios por aqui, pode me responder por texto? 😊");
+        } catch(e) {
+          console.error("[ERRO AUDIO]", e.message);
+        }
       }
       return;
     }
