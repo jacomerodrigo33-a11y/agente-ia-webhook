@@ -111,7 +111,9 @@ CONTEUDO QUE DEVE PASSAR (nessa ordem):
 6. Sugerir o melhor periodo com base na rotina da pessoa
 7. Informar o endereco: Rua 14 de Julho, no Centro, em frente as Pernambucanas. Treinamento 1 a 2x por semana, dias flexiveis, voce escolhe os dias.
 8. Criar urgencia: vagas limitadas, finalizando confirmacoes ate 17h30, precisa registrar o horario agora para nao perder a vaga
-9. Oferecer 2 opcoes de horario (respeitando contexto abaixo) para a VISITA NA UNIDADE — deixar claro que nessa visita a responsavel vai conhecer a escola, realizar a inscricao e agendar o inicio do treinamento. A crianca deve vir junto. Confirmar o agendamento.
+9. Oferecer 2 opcoes de horario (respeitando contexto abaixo) para a VISITA NA UNIDADE — nessa visita a responsavel vai conhecer a escola, realizar a inscricao e agendar o inicio do treinamento. A crianca deve vir junto.
+10. Apos o cliente escolher o horario, SEMPRE perguntar: "Podemos confirmar seu agendamento?"
+11. Se o cliente responder sim, ok, pode, confirmo ou qualquer confirmacao positiva: confirme o agendamento com data e hora e diga "Agendamento confirmado! Ate [dia] as [hora]!"
 
 EXEMPLOS DE COMO REAGIR:
 - Pessoa pergunta "quem fala?" → "Sou o Rodrigo, da central de agendamentos do Bombeiro Mirim da Unibraz!"
@@ -154,7 +156,9 @@ CONTEUDO QUE DEVE PASSAR (nessa ordem):
 7. Perguntar disponibilidade: manha ou tarde? (respeitando contexto abaixo)
 8. Se for menor de 21 anos: avisar que precisa vir acompanhado do responsavel legal
 9. Alertar sobre seriedade: nao comparecer sem avisar pode gerar bloqueio para futuras convocacoes
-10. Deixar claro que nessa visita a pessoa vai conhecer a unidade, realizar a inscricao e agendar o inicio do treinamento. Confirmar o agendamento com horario.
+10. Deixar claro que nessa visita a pessoa vai conhecer a unidade, realizar a inscricao e agendar o inicio do treinamento.
+11. Apos o cliente escolher o horario, SEMPRE perguntar: "Podemos confirmar seu agendamento?"
+12. Se o cliente responder sim, ok, pode, confirmo ou qualquer confirmacao positiva: confirme com data e hora e diga "Agendamento confirmado! Ate [dia] as [hora]!"
 
 EXEMPLOS DE COMO REAGIR:
 - Pessoa pergunta "quem fala?" → "Sou o Rodrigo, da central de agendamentos do Pre-Militar da Unibraz!"
@@ -198,7 +202,9 @@ CONTEUDO QUE DEVE PASSAR (nessa ordem):
 7. Informar que voce esta sendo convocado para comparecer na unidade para entregar documentacao (RG, CPF e comprovante de endereco) e deixar o treinamento agendado
 8. Perguntar disponibilidade respeitando o contexto de horario abaixo
 9. Reforcar comprometimento: caso nao compareça sua vaga vai para outro candidato na fila de espera
-10. Deixar claro que nessa visita a pessoa vai conhecer a unidade, realizar a inscricao e agendar o inicio do treinamento. Confirmar o agendamento com horario. Se for menor de 21 lembrar de vir com o responsavel.
+10. Deixar claro que nessa visita a pessoa vai conhecer a unidade, realizar a inscricao e agendar o inicio do treinamento.
+11. Apos o cliente escolher o horario, SEMPRE perguntar: "Podemos confirmar seu agendamento?"
+12. Se o cliente responder sim, ok, pode, confirmo ou qualquer confirmacao positiva: confirme com data e hora e diga "Agendamento confirmado! Ate [dia] as [hora]!" e se for menor de 21 lembre de vir com o responsavel.
 
 EXEMPLOS DE COMO REAGIR:
 - Pessoa pergunta "quem fala?" → "Sou o Rodrigo, da central de agendamentos da Guarda Municipal da Unibraz!"
@@ -248,21 +254,32 @@ function gerarConfirmacao(project, dataHora) {
 // Detecta se a IA confirmou o agendamento e extrai data/hora
 async function detectarAgendamento(aiReply, project) {
   const lower = aiReply.toLowerCase();
-  const confirmados = ["agendamento confirmado","agendamento realizado","ficou agendado","está agendado","agendamento feito","confirmado para","registrado para","anotado para","confirmei","registrei"];
+  const confirmados = [
+    "agendamento confirmado","agendamento realizado","ficou agendado","está agendado",
+    "agendamento feito","confirmado para","registrado para","anotado para","confirmei",
+    "registrei","tudo confirmado","está marcado","ficou marcado","marcado para",
+    "anotei aqui","estou anotando","fica agendado","agendei","combinado para",
+    "te espero","até amanhã","até hoje","nos vemos","tchau","até lá",
+    "agendamento feito", "agendamento ok", "perfeito, então"
+  ];
   const temConfirmacao = confirmados.some(p => lower.includes(p));
   if (!temConfirmacao) return null;
 
-  // Tenta extrair data/hora da resposta da IA com Groq
+  // Extrai data/hora da resposta
   const extractRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
-      max_tokens: 50,
+      max_tokens: 80,
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Extraia APENAS a data e horário do agendamento desta mensagem no formato DD/MM/AAAA AS HH:MM. Se não encontrar, responda: NAO_ENCONTRADO. Mensagem: "${aiReply}"`
+        content: `Analise esta mensagem e extraia a data e horario do agendamento.
+Retorne APENAS no formato: DD/MM/AAAA AS HH:MM
+Se mencionar "amanha" sem data especifica, use a data de amanha baseado em hoje: ${new Date().toLocaleDateString('pt-BR')}.
+Se nao encontrar data/hora, responda: NAO_ENCONTRADO.
+Mensagem: "${aiReply}"`
       }]
     })
   });
