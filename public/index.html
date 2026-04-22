@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disparo IA — Agendamentos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+  :root {
+    --bg:#f5f2eb;--surface:#faf8f3;--surface2:#edeae1;--border:#d8d3c8;
+    --ink:#1a1a18;--muted:#8a8478;--green:#2d7a4f;--green-bg:#e8f5ee;
+    --red:#c0392b;--red-bg:#fdf0ee;--pre:#d4860a;--guarda:#1a6b9a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace;min-height:100vh}
+  .wrap{max-width:960px;margin:0 auto;padding:40px 24px}
+  h1{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-0.03em}
+  .sub{font-size:0.7rem;color:var(--muted);margin-top:4px;letter-spacing:0.08em}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
+  .pill{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:100px;font-size:0.67rem;color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+  .card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-size:0.62rem;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)}
+  .card-body{padding:18px}
+  .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;margin-bottom:14px}
+  input,select,textarea{background:var(--bg);border:1.5px solid var(--border);color:var(--ink);font-family:'DM Mono',monospace;font-size:0.8rem;padding:10px 12px;border-radius:9px;outline:none;transition:border-color 0.15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--ink)}
+  input::placeholder,textarea::placeholder{color:var(--muted)}
+  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238a8478' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;padding-right:28px;min-width:155px}
+  .btn{padding:10px 16px;border-radius:9px;font-family:'DM Mono',monospace;font-size:0.76rem;font-weight:500;cursor:pointer;border:none;transition:opacity 0.15s;white-space:nowrap}
+  .btn-dark{background:var(--ink);color:var(--bg)}
+  .btn-dark:hover{opacity:0.82}
+  .btn-dark:disabled{opacity:0.35;cursor:not-allowed}
+  .btn-red{background:var(--red-bg);color:var(--red);border:1px solid #f5c6c2;display:none}
+  .divider{text-align:center;font-size:0.63rem;color:var(--muted);margin:12px 0;position:relative}
+  .divider::before,.divider::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:var(--border)}
+  .divider::before{left:0}.divider::after{right:0}
+  .bulk-row{display:flex;flex-direction:column;gap:10px}
+  .bulk-foot{display:flex;justify-content:space-between;align-items:center}
+  .hint{font-size:0.63rem;color:var(--muted)}
+  textarea{resize:vertical;min-height:85px;line-height:1.6}
+  .empty{padding:28px;text-align:center;font-size:0.7rem;color:var(--muted)}
+  table{width:100%;border-collapse:collapse}
+  th{padding:9px 18px;text-align:left;font-size:0.6rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2)}
+  td{padding:11px 18px;font-size:0.76rem;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--surface2)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:0.6rem;font-weight:500}
+  .bm{background:#fdecea;color:var(--red);border:1px solid #f5c6c2}
+  .bp{background:#fef3e2;color:var(--pre);border:1px solid #f5dca8}
+  .bg{background:#e8f0f7;color:var(--guarda);border:1px solid #b8d0e8}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.6rem}
+  .cd{width:5px;height:5px;border-radius:50%}
+  .s-idle{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+  .s-idle .cd{background:var(--muted)}
+  .s-send{background:#fff8e8;color:var(--pre);border:1px solid #f5dca8}
+  .s-send .cd{background:var(--pre);animation:pulse 0.8s infinite}
+  .s-ok{background:var(--green-bg);color:var(--green);border:1px solid #a8d5bc}
+  .s-ok .cd{background:var(--green)}
+  .s-err{background:var(--red-bg);color:var(--red);border:1px solid #f5c6c2}
+  .s-err .cd{background:var(--red)}
+  .xbtn{background:none;border:none;cursor:pointer;color:var(--muted);padding:3px 7px;border-radius:4px;font-size:0.78rem}
+  .xbtn:hover{background:var(--red-bg);color:var(--red)}
+  .launch{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px}
+  .lcount{font-size:1.4rem;font-weight:800;font-family:'Syne',sans-serif}
+  .linfo{font-size:0.68rem;color:var(--muted)}
+  .pbar{height:4px;background:var(--surface2);border-radius:100px;overflow:hidden;flex:1;display:none}
+  .pfill{height:100%;background:var(--ink);border-radius:100px;transition:width 0.4s;width:0}
+  .logbox{background:var(--ink);border-radius:14px;overflow:hidden;display:none}
+  .logbox.on{display:block}
+  .loghead{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:0.6rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em;text-transform:uppercase;display:flex;justify-content:space-between}
+  .logbody{padding:12px 16px;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+  .logbody::-webkit-scrollbar{width:3px}
+  .logbody::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+  .ll{font-size:0.66rem;font-family:'DM Mono',monospace;color:rgba(255,255,255,0.45);line-height:1.5}
+  .lok{color:#4ade80}.lerr{color:#f87171}.linfo{color:#93c5fd}.lwarn{color:#fbbf24}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div><h1>Disparo IA</h1><div class="sub">AGENDAMENTOS AUTOMÁTICOS VIA WHATSAPP</div></div>
+    <div class="pill"><div class="dot"></div>WA-1 • Evolution API</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Adicionar Contatos</span></div>
+    <div class="card-body">
+      <div class="row">
+        <input type="text" id="sp" placeholder="5567999999999" onkeydown="if(event.key==='Enter')addOne()">
+        <select id="sj">
+          <option value="mirim">🔴 Bombeiro Mirim</option>
+          <option value="pre">🟡 Pré-Militar</option>
+          <option value="guarda">🔵 Guarda Municipal</option>
+        </select>
+        <button class="btn btn-dark" onclick="addOne()">+ Adicionar</button>
+      </div>
+      <div class="divider">ou cole vários números</div>
+      <div class="bulk-row">
+        <select id="bj" style="width:180px">
+          <option value="mirim">🔴 Bombeiro Mirim</option>
+          <option value="pre">🟡 Pré-Militar</option>
+          <option value="guarda">🔵 Guarda Municipal</option>
+        </select>
+        <textarea id="bt" placeholder="Cole os números aqui, um por linha:&#10;5567992115295&#10;5567992424089"></textarea>
+        <div class="bulk-foot">
+          <span class="hint">Um número por linha • Com ou sem espaços/traços</span>
+          <button class="btn btn-dark" onclick="importBulk()">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Fila de Disparo</span><span id="qc" style="font-size:0.66rem;color:var(--muted)">0 contatos</span></div>
+    <div id="qe" class="empty">Nenhum contato adicionado ainda.</div>
+    <table id="qt" style="display:none">
+      <thead><tr><th>Telefone</th><th>Projeto</th><th>Status</th><th>Msgs</th><th></th></tr></thead>
+      <tbody id="qb"></tbody>
+    </table>
+  </div>
+
+  <div class="launch">
+    <div><div class="lcount" id="lc">0</div><div class="linfo">contatos na fila</div></div>
+    <div class="pbar" id="pb"><div class="pfill" id="pf"></div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-red" id="sb" onclick="stopAll()">■ Parar</button>
+      <button class="btn btn-dark" id="lb" onclick="launchAll()" disabled>🚀 Disparar tudo</button>
+    </div>
+  </div>
+
+  <div class="logbox" id="lg">
+    <div class="loghead"><span>Log de execução</span><span id="lgevt">0 eventos</span></div>
+    <div class="logbody" id="lgb"></div>
+  </div>
+</div>
+
+<script>
+let contacts=[], running=false, stopFlag=false, nid=1, nevt=0;
+
+function clean(p){return p.replace(/\D/g,'')}
+function plabel(p){return{mirim:'🔴 Mirim',pre:'🟡 Pré-Mil',guarda:'🔵 Guarda'}[p]}
+function pbadge(p){return{mirim:'badge bm',pre:'badge bp',guarda:'badge bg'}[p]}
+function chip(s){
+  const m={
+    idle:'<span class="chip s-idle"><span class="cd"></span>Aguardando</span>',
+    sending:'<span class="chip s-send"><span class="cd"></span>Enviando...</span>',
+    active:'<span class="chip s-ok"><span class="cd"></span>Enviado</span>',
+    error:'<span class="chip s-err"><span class="cd"></span>Erro</span>'
+  };
+  return m[s]||m.idle;
+}
+
+function log(msg,t=''){
+  document.getElementById('lg').classList.add('on');
+  const b=document.getElementById('lgb');
+  const d=document.createElement('div');
+  d.className='ll'+(t?' l'+t:'');
+  d.textContent='['+new Date().toLocaleTimeString('pt-BR')+'] '+msg;
+  b.appendChild(d);
+  b.scrollTop=b.scrollHeight;
+  nevt++;
+  document.getElementById('lgevt').textContent=nevt+' eventos';
+}
+
+function render(){
+  const qe=document.getElementById('qe');
+  const qt=document.getElementById('qt');
+  const qb=document.getElementById('qb');
+  document.getElementById('qc').textContent=contacts.length+' contato'+(contacts.length!==1?'s':'');
+  document.getElementById('lc').textContent=contacts.length;
+  document.getElementById('lb').disabled=contacts.length===0||running;
+  if(!contacts.length){qe.style.display='block';qt.style.display='none';return}
+  qe.style.display='none';qt.style.display='table';
+  qb.innerHTML='';
+  contacts.forEach(c=>{
+    const tr=document.createElement('tr');
+    tr.id='r'+c.id;
+    tr.innerHTML=`<td>${c.phone}</td><td><span class="${pbadge(c.project)}">${plabel(c.project)}</span></td><td id="s${c.id}">${chip(c.status)}</td><td id="m${c.id}" style="color:var(--muted)">${c.msgs}</td><td><button class="xbtn" onclick="del(${c.id})" ${running?'disabled':''}>✕</button></td>`;
+    qb.appendChild(tr);
+  });
+}
+
+function upd(c){
+  const s=document.getElementById('s'+c.id);
+  const m=document.getElementById('m'+c.id);
+  if(s)s.innerHTML=chip(c.status);
+  if(m)m.textContent=c.msgs;
+}
+
+function addOne(){
+  const phone=clean(document.getElementById('sp').value.trim());
+  const proj=document.getElementById('sj').value;
+  if(phone.length<8){alert('Número inválido.');return}
+  if(contacts.find(c=>c.phone===phone)){alert('Já na fila.');return}
+  contacts.push({id:nid++,phone,project:proj,status:'idle',msgs:0});
+  document.getElementById('sp').value='';
+  render();
+}
+
+function importBulk(){
+  const lines=document.getElementById('bt').value.split('\n');
+  const proj=document.getElementById('bj').value;
+  let added=0;
+  lines.forEach(l=>{
+    const phone=clean(l.trim());
+    if(phone.length<8||contacts.find(c=>c.phone===phone))return;
+    contacts.push({id:nid++,phone,project:proj,status:'idle',msgs:0});
+    added++;
+  });
+  document.getElementById('bt').value='';
+  if(added>0)log(added+' contato(s) importados ('+plabel(proj)+')','info');
+  else log('Nenhum número válido encontrado.','warn');
+  render();
+}
+
+function del(id){contacts=contacts.filter(c=>c.id!==id);render()}
+
+async function launchAll(){
+  if(running||!contacts.length)return;
+  running=true;stopFlag=false;
+  document.getElementById('lb').style.display='none';
+  document.getElementById('sb').style.display='inline-block';
+  document.getElementById('pb').style.display='flex';
+  const total=contacts.length;let done=0;
+  log('Iniciando disparo para '+total+' contato(s)...','info');
+  for(const c of contacts){
+    if(stopFlag){log('Interrompido.','warn');break}
+    if(c.status!=='idle'){done++;continue}
+    c.status='sending';upd(c);
+    log('Iniciando com '+c.phone+' ('+plabel(c.project)+')...','info');
+    try{
+      const res=await fetch('/start',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({phone:c.phone,project:c.project})
+      });
+      const data=await res.json();
+      if(data.ok){c.status='active';c.msgs=1;log('✓ Enviado para '+c.phone,'ok')}
+      else throw new Error(data.error||'Erro');
+    }catch(e){c.status='error';log('✗ Erro em '+c.phone+': '+e.message,'err')}
+    upd(c);done++;
+    document.getElementById('pf').style.width=Math.round((done/total)*100)+'%';
+    if(done<total)await new Promise(r=>setTimeout(r,3000));
+  }
+  log('Concluído. '+contacts.filter(c=>c.status==='active').length+' enviados.','ok');
+  running=false;
+  document.getElementById('lb').style.display='inline-block';
+  document.getElementById('sb').style.display='none';
+  document.getElementById('lb').disabled=false;
+  render();
+}
+
+function stopAll(){stopFlag=true;log('Parando...','warn')}
+</script>
+</body>
+</html>
