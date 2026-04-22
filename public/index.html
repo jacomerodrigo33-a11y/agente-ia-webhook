@@ -41,6 +41,7 @@
   .bulk-foot{display:flex;justify-content:space-between;align-items:center}
   .hint{font-size:0.63rem;color:var(--muted)}
   textarea{resize:vertical;min-height:85px;line-height:1.6}
+  .msg-textarea{min-height:100px;font-size:0.82rem;line-height:1.7}
   .empty{padding:28px;text-align:center;font-size:0.7rem;color:var(--muted)}
   table{width:100%;border-collapse:collapse}
   th{padding:9px 18px;text-align:left;font-size:0.6rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2)}
@@ -76,6 +77,7 @@
   .logbody::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
   .ll{font-size:0.66rem;font-family:'DM Mono',monospace;color:rgba(255,255,255,0.45);line-height:1.5}
   .lok{color:#4ade80}.lerr{color:#f87171}.linfo{color:#93c5fd}.lwarn{color:#fbbf24}
+  .msg-preview{background:var(--green-bg);border:1px solid #a8d5bc;border-radius:10px;padding:12px 14px;font-size:0.78rem;color:#1a4a2e;line-height:1.6;margin-top:10px;display:none;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -85,6 +87,16 @@
     <div class="pill"><div class="dot"></div>WA-1 • Evolution API</div>
   </div>
 
+  <!-- Primeira mensagem -->
+  <div class="card">
+    <div class="card-head"><span class="card-title">Primeira Mensagem</span><span class="hint">Você escreve, o app envia</span></div>
+    <div class="card-body">
+      <textarea class="msg-textarea" id="firstMsg" placeholder="Digite aqui a mensagem que será enviada para todos os contatos...&#10;&#10;Ex: Olá, bom dia! Tudo bem? Me chamo Talita, falo dos Bombeiros Mirins. Estou entrando em contato referente à inscrição realizada. Falo com a responsável?" oninput="previewMsg()"></textarea>
+      <div class="msg-preview" id="msgPreview"></div>
+    </div>
+  </div>
+
+  <!-- Adicionar contatos -->
   <div class="card">
     <div class="card-head"><span class="card-title">Adicionar Contatos</span></div>
     <div class="card-body">
@@ -113,6 +125,7 @@
     </div>
   </div>
 
+  <!-- Fila -->
   <div class="card">
     <div class="card-head"><span class="card-title">Fila de Disparo</span><span id="qc" style="font-size:0.66rem;color:var(--muted)">0 contatos</span></div>
     <div id="qe" class="empty">Nenhum contato adicionado ainda.</div>
@@ -122,6 +135,7 @@
     </table>
   </div>
 
+  <!-- Launch -->
   <div class="launch">
     <div><div class="lcount" id="lc">0</div><div class="linfo">contatos na fila</div></div>
     <div class="pbar" id="pb"><div class="pfill" id="pf"></div></div>
@@ -131,6 +145,7 @@
     </div>
   </div>
 
+  <!-- Log -->
   <div class="logbox" id="lg">
     <div class="loghead"><span>Log de execução</span><span id="lgevt">0 eventos</span></div>
     <div class="logbody" id="lgb"></div>
@@ -151,6 +166,13 @@ function chip(s){
     error:'<span class="chip s-err"><span class="cd"></span>Erro</span>'
   };
   return m[s]||m.idle;
+}
+
+function previewMsg(){
+  const msg = document.getElementById('firstMsg').value.trim();
+  const prev = document.getElementById('msgPreview');
+  if(msg){ prev.style.display='block'; prev.textContent='💬 '+msg; }
+  else { prev.style.display='none'; }
 }
 
 function log(msg,t=''){
@@ -220,6 +242,8 @@ function del(id){contacts=contacts.filter(c=>c.id!==id);render()}
 
 async function launchAll(){
   if(running||!contacts.length)return;
+  const firstMsg = document.getElementById('firstMsg').value.trim();
+  if(!firstMsg){ alert('Digite a primeira mensagem antes de disparar!'); return; }
   running=true;stopFlag=false;
   document.getElementById('lb').style.display='none';
   document.getElementById('sb').style.display='inline-block';
@@ -230,12 +254,12 @@ async function launchAll(){
     if(stopFlag){log('Interrompido.','warn');break}
     if(c.status!=='idle'){done++;continue}
     c.status='sending';upd(c);
-    log('Iniciando com '+c.phone+' ('+plabel(c.project)+')...','info');
+    log('Enviando para '+c.phone+' ('+plabel(c.project)+')...','info');
     try{
       const res=await fetch('/start',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({phone:c.phone,project:c.project})
+        body:JSON.stringify({phone:c.phone,project:c.project,firstMessage:firstMsg})
       });
       const data=await res.json();
       if(data.ok){c.status='active';c.msgs=1;log('✓ Enviado para '+c.phone,'ok')}
