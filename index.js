@@ -458,7 +458,7 @@ function updateRow(c) {
 function addSingle() {
   const phone = cleanPhone(document.getElementById("singlePhone").value.trim());
   const proj = document.getElementById("singleProject").value;
-  if (phone.length<10) return alert("Número inválido.");
+  if (phone.length<8) return alert("Número inválido.");
   if (contacts.find(c=>c.phone===phone)) return alert("Número já está na fila.");
   contacts.push({id:nextId++,phone,project:proj,status:"idle",msgCount:0});
   document.getElementById("singlePhone").value="";
