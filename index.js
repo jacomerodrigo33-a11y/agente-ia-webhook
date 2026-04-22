@@ -418,7 +418,8 @@ app.post("/webhook", async (req, res) => {
     // Se for audio, pede para digitar
     if (!text) {
       const isAudio = msg.audioMessage || msg.pttMessage;
-      if (isAudio && conversations[phone]) {
+      const convCheck = await getConversation(phone);
+      if (isAudio && convCheck) {
         try {
           await sendWhatsApp(phone, "Oi! Não consigo ouvir áudios por aqui, pode me responder por texto? 😊");
         } catch(e) {
@@ -429,28 +430,20 @@ app.post("/webhook", async (req, res) => {
     }
 
     console.log(`[WEBHOOK] Número recebido: ${phone}`);
-    console.log(`[WEBHOOK] Conversas ativas: ${JSON.stringify(Object.keys(conversations))}`);
 
-    // Tenta encontrar o número exato ou variação (com/sem 9 extra)
-    if (!conversations[phone]) {
-      // Tenta remover o 9 extra (ex: 5567991116957 -> 556791116957)
+    // Tenta encontrar o numero exato ou variacao (com/sem 9 extra)
+    let conv = await getConversation(phone);
+    if (!conv) {
       const semNove = phone.length === 13 ? phone.slice(0,4) + phone.slice(5) : null;
-      // Tenta adicionar o 9 (ex: 556791116957 -> 5567991116957)
-      const comNove = phone.length === 12 ? phone.slice(0,4) + "9" + phone.slice(4) : null;
-
-      if (semNove && conversations[semNove]) {
-        phone = semNove;
-        console.log(`[WEBHOOK] Número ajustado para: ${phone}`);
-      } else if (comNove && conversations[comNove]) {
-        phone = comNove;
-        console.log(`[WEBHOOK] Número ajustado para: ${phone}`);
-      } else {
+      const comNove = phone.length === 12 ? phone.slice(0,4) + '9' + phone.slice(4) : null;
+      if (semNove) conv = await getConversation(semNove);
+      if (!conv && comNove) conv = await getConversation(comNove);
+      if (!conv) {
         console.log(`[IGNORADO] ${phone} — não registrado`);
         return;
       }
     }
 
-    const conv = conversations[phone];
     conv.history.push({ role: "user", content: text });
     if (conv.history.length > 20) conv.history = conv.history.slice(-20);
     await saveConversation(phone, conv);
