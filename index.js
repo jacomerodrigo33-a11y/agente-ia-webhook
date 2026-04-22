@@ -15,30 +15,72 @@ function getScheduleContext() {
   const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const hour = brasilia.getHours();
   const minutes = brasilia.getMinutes();
-  const day = brasilia.getDay();
+  const day = brasilia.getDay(); // 0=dom, 6=sab
   const totalMinutes = hour * 60 + minutes;
-  const abertura = 8 * 60;
-  const fechamento = 17 * 60 + 30;
-  const diasSemana = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
-  const hoje = diasSemana[day];
-  const aberto = day >= 1 && day <= 6 && totalMinutes >= abertura && totalMinutes < fechamento;
-  let diasParaProximo = 1;
-  let proximoDia = (day + 1) % 7;
-  while (proximoDia === 0) { diasParaProximo++; proximoDia = (day + diasParaProximo) % 7; }
-  const proximoDiaNome = diasSemana[proximoDia];
+  const abertura = 8 * 60;        // 8:00
+  const fechamento = 17 * 60 + 30; // 17:30
+  const fmt = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
 
-  if (aberto) {
-    const minutosRestantes = fechamento - totalMinutes;
-    if (minutosRestantes >= 60) {
-      const h1 = Math.ceil((totalMinutes + 30) / 30) * 30;
-      const h2 = h1 + 60;
-      const fmt = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-      return `HORÁRIO ATUAL: ${String(hour).padStart(2,'0')}:${String(minutes).padStart(2,'0')} de ${hoje}. Unidade ABERTA até 17h30. Ofereça horários HOJE: ${fmt(h1)} ou ${fmt(h2)}.`;
-    } else {
-      return `HORÁRIO ATUAL: ${String(hour).padStart(2,'0')}:${String(minutes).padStart(2,'0')} de ${hoje}. Unidade PRESTES A FECHAR (fecha às 17h30). Ofereça horários para ${proximoDiaNome}: 8h30 ou 10h00.`;
-    }
+  const diasSemana = ["domingo","segunda-feira","terca-feira","quarta-feira","quinta-feira","sexta-feira","sabado"];
+  const diasNum = ["domingo","segunda","terca","quarta","quinta","sexta","sabado"];
+  const hoje = diasSemana[day];
+
+  // Proximo dia util (seg-sab)
+  let nextDay = (day + 1) % 7;
+  if (nextDay === 0) nextDay = 1; // pula domingo
+  const amanha = diasSemana[nextDay];
+
+  // Data formatada
+  const dd = String(brasilia.getDate()).padStart(2,'0');
+  const mm = String(brasilia.getMonth()+1).padStart(2,'0');
+  const yyyy = brasilia.getFullYear();
+  const hojeData = dd + '/' + mm + '/' + yyyy;
+
+  // Data amanha
+  const amanhaBrasilia = new Date(brasilia);
+  amanhaBrasilia.setDate(amanhaBrasilia.getDate() + (nextDay === day + 1 ? 1 : 2));
+  const ddA = String(amanhaBrasilia.getDate()).padStart(2,'0');
+  const mmA = String(amanhaBrasilia.getMonth()+1).padStart(2,'0');
+  const yyyyA = amanhaBrasilia.getFullYear();
+  const amanhaData = ddA + '/' + mmA + '/' + yyyyA;
+
+  const diaUtil = day >= 1 && day <= 6;
+  const aberto = diaUtil && totalMinutes >= abertura && totalMinutes < fechamento;
+  const minutosRestantes = fechamento - totalMinutes;
+
+  // Horarios compativeis para hoje (a partir de 30min do horario atual)
+  const h1hoje = Math.ceil((totalMinutes + 30) / 60) * 60; // arredonda pra hora cheia
+  const h2hoje = h1hoje + 60;
+
+  if (aberto && minutosRestantes >= 90) {
+    // Unidade aberta e tem horario sobrando
+    return `CONTEXTO DE AGENDAMENTO:
+- Horario atual: ${fmt(totalMinutes)} de ${hoje} (${hojeData})
+- Unidade ABERTA (funciona seg-sab das 8h as 17h30)
+- HOJE tem horario disponivel. CRIE URGENCIA: diga que as inscricoes se encerram HOJE e que e o ULTIMO DIA.
+- Qualquer horario entre 8h00 e 17h30 pode ser agendado HOJE
+- Pergunte o horario que o cliente trabalha e o horario do aluno, e ofereca horario COMPATIVEL com a rotina deles
+- Sugestao de horarios para hoje baseado no horario atual: ${fmt(h1hoje)} ou ${fmt(h2hoje)}
+- Se nao der hoje, ofereca AMANHA (${amanha}, ${amanhaData}) como ULTIMA opcao — qualquer horario entre 8h e 17h30
+- Maximo: hoje ou amanha. Nao agende para depois de amanha.`;
+  } else if (aberto && minutosRestantes < 90) {
+    // Pouco tempo hoje
+    return `CONTEXTO DE AGENDAMENTO:
+- Horario atual: ${fmt(totalMinutes)} de ${hoje} (${hojeData})
+- Unidade esta QUASE FECHANDO (fecha as 17h30). Nao ofereca horarios para hoje.
+- CRIE URGENCIA: diga que as inscricoes se encerram AMANHA e que e o ULTIMO DIA.
+- Ofereca AMANHA (${amanha}, ${amanhaData}) como UNICA opcao — qualquer horario entre 8h e 17h30
+- Pergunte o horario que o cliente trabalha e o horario do aluno, e ofereca horario COMPATIVEL com a rotina deles
+- Maximo: amanha. Nao agende para depois.`;
   } else {
-    return `HORÁRIO ATUAL: ${String(hour).padStart(2,'0')}:${String(minutes).padStart(2,'0')} de ${hoje}. Unidade FECHADA (funciona seg-sáb das 8h às 17h30). NUNCA ofereça horários para hoje. Ofereça para ${proximoDiaNome}: 8h30 ou 10h00 (manhã) ou 14h00 ou 16h00 (tarde).`;
+    // Unidade fechada
+    return `CONTEXTO DE AGENDAMENTO:
+- Horario atual: ${fmt(totalMinutes)} de ${hoje} (${hojeData})
+- Unidade FECHADA agora (funciona seg-sab das 8h as 17h30). NUNCA ofereca horarios para hoje.
+- CRIE URGENCIA: diga que as inscricoes se encerram AMANHA e que e o ULTIMO DIA.
+- Ofereca AMANHA (${amanha}, ${amanhaData}) como UNICA opcao — qualquer horario entre 8h e 17h30
+- Pergunte o horario que o cliente trabalha e o horario do aluno, e ofereca horario COMPATIVEL com a rotina deles
+- Maximo: amanha. Nao agende para depois.`;
   }
 }
 
