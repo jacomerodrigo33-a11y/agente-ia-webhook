@@ -204,13 +204,30 @@ app.post("/webhook", async (req, res) => {
     if (body.data?.key?.fromMe) return;
     const remoteJid = body.data?.key?.remoteJid || "";
     if (remoteJid.includes("@g.us")) return;
-    const phone = remoteJid.replace("@s.whatsapp.net", "");
+    let phone = remoteJid.replace("@s.whatsapp.net", "");
     const text = msg.conversation || msg.extendedTextMessage?.text || "";
     if (!text) return;
 
+    console.log(`[WEBHOOK] Número recebido: ${phone}`);
+    console.log(`[WEBHOOK] Conversas ativas: ${JSON.stringify(Object.keys(conversations))}`);
+
+    // Tenta encontrar o número exato ou variação (com/sem 9 extra)
     if (!conversations[phone]) {
-      console.log(`[IGNORADO] ${phone} — não registrado`);
-      return;
+      // Tenta remover o 9 extra (ex: 5567991116957 -> 556791116957)
+      const semNove = phone.length === 13 ? phone.slice(0,4) + phone.slice(5) : null;
+      // Tenta adicionar o 9 (ex: 556791116957 -> 5567991116957)
+      const comNove = phone.length === 12 ? phone.slice(0,4) + "9" + phone.slice(4) : null;
+
+      if (semNove && conversations[semNove]) {
+        phone = semNove;
+        console.log(`[WEBHOOK] Número ajustado para: ${phone}`);
+      } else if (comNove && conversations[comNove]) {
+        phone = comNove;
+        console.log(`[WEBHOOK] Número ajustado para: ${phone}`);
+      } else {
+        console.log(`[IGNORADO] ${phone} — não registrado`);
+        return;
+      }
     }
 
     const conv = conversations[phone];
