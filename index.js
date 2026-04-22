@@ -58,9 +58,9 @@ function getScheduleContext() {
 - Horario atual: ${fmt(totalMinutes)} de ${hoje} (${hojeData})
 - Unidade ABERTA (funciona seg-sab das 8h as 17h30)
 - HOJE tem horario disponivel. CRIE URGENCIA: diga que as inscricoes se encerram HOJE e que e o ULTIMO DIA.
-- Qualquer horario entre 8h00 e 17h30 pode ser agendado HOJE
+- Qualquer horario entre 8h00 e 17h30 pode ser agendado HOJE — SEMPRE ofereça horario ESPECIFICO (ex: 14h30, 10h00) nunca vago (ex: "a tarde", "pela manha")
 - Pergunte o horario que o cliente trabalha e o horario do aluno, e ofereca horario COMPATIVEL com a rotina deles
-- Sugestao de horarios para hoje baseado no horario atual: ${fmt(h1hoje)} ou ${fmt(h2hoje)}
+- SEMPRE ofereça horarios ESPECIFICOS com hora marcada. Sugestao baseada no horario atual: ${fmt(h1hoje)} ou ${fmt(h2hoje)}
 - Se nao der hoje, ofereca AMANHA (${amanha}, ${amanhaData}) como ULTIMA opcao — qualquer horario entre 8h e 17h30
 - Maximo: hoje ou amanha. Nao agende para depois de amanha.`;
   } else if (aberto && minutosRestantes < 90) {
@@ -69,7 +69,7 @@ function getScheduleContext() {
 - Horario atual: ${fmt(totalMinutes)} de ${hoje} (${hojeData})
 - Unidade esta QUASE FECHANDO (fecha as 17h30). Nao ofereca horarios para hoje.
 - CRIE URGENCIA: diga que as inscricoes se encerram AMANHA e que e o ULTIMO DIA.
-- Ofereca AMANHA (${amanha}, ${amanhaData}) como UNICA opcao — qualquer horario entre 8h e 17h30
+- SEMPRE ofereça horario ESPECIFICO com hora marcada. Ofereca AMANHA (${amanha}, ${amanhaData}) como UNICA opcao — qualquer horario entre 8h e 17h30
 - Pergunte o horario que o cliente trabalha e o horario do aluno, e ofereca horario COMPATIVEL com a rotina deles
 - Maximo: amanha. Nao agende para depois.`;
   } else {
@@ -78,7 +78,7 @@ function getScheduleContext() {
 - Horario atual: ${fmt(totalMinutes)} de ${hoje} (${hojeData})
 - Unidade FECHADA agora (funciona seg-sab das 8h as 17h30). NUNCA ofereca horarios para hoje.
 - CRIE URGENCIA: diga que as inscricoes se encerram AMANHA e que e o ULTIMO DIA.
-- Ofereca AMANHA (${amanha}, ${amanhaData}) como UNICA opcao — qualquer horario entre 8h e 17h30
+- SEMPRE ofereça horario ESPECIFICO com hora marcada. Ofereca AMANHA (${amanha}, ${amanhaData}) como UNICA opcao — qualquer horario entre 8h e 17h30
 - Pergunte o horario que o cliente trabalha e o horario do aluno, e ofereca horario COMPATIVEL com a rotina deles
 - Maximo: amanha. Nao agende para depois.`;
   }
@@ -239,7 +239,17 @@ const NOMES_PROJETO = {
 function gerarConfirmacao(project, dataHora) {
   const protocolo = PROTOCOLOS[project];
   const nomeProjeto = NOMES_PROJETO[project];
-  return `✅ Informamos que o AGENDAMENTO referente ao treinamento ${nomeProjeto} foi concluído com sucesso.
+
+  // Verifica se e hoje ou amanha para personalizar a mensagem de alerta
+  const brasilia = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const dd = String(brasilia.getDate()).padStart(2,'0');
+  const mm = String(brasilia.getMonth()+1).padStart(2,'0');
+  const yyyy = brasilia.getFullYear();
+  const hojeStr = dd + '/' + mm + '/' + yyyy;
+  const ehHoje = dataHora.includes(hojeStr);
+  const diaTexto = ehHoje ? "hoje nesse horário" : "amanhã nesse horário";
+
+  const protocolo_msg = `✅ Informamos que o AGENDAMENTO referente ao treinamento ${nomeProjeto} foi concluído com sucesso.
 
 *Dados do Agendamento:*
 📋 Protocolo: Nº[${protocolo}]
@@ -249,6 +259,13 @@ function gerarConfirmacao(project, dataHora) {
 🏪 Ponto de Referência: Em frente às lojas Pernambucanas.
 
 ⚠️ Obs: Se for de menor, deverá vir acompanhado com o responsável, e o jovem precisa estar junto no dia do treinamento.`;
+
+  const alerta_msg = `⚠️ Atenção!
+Como hoje é o último dia das inscrições do projeto e as vagas são limitadas, já temos outros alunos em fila de espera aguardando essa oportunidade.
+Caso você não compareça, automaticamente estará tirando a vaga de outro aluno que poderia estar participando.
+Então preciso da sua confirmação agora: você vai comparecer ${diaTexto}? ✅`;
+
+  return { protocolo: protocolo_msg, alerta: alerta_msg };
 }
 
 // Detecta se a IA confirmou o agendamento e extrai data/hora
